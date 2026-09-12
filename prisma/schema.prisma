@@ -1,0 +1,596 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EXECUTIVE
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum LeadSource {
+  META
+  HOUSING
+  PERSONAL
+  ADMIN
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  ASSIGNED
+  CONTACTED
+  POSITIVE
+  NEGATIVE
+  UNRESPONSIVE
+  CALLBACK
+  FOLLOW_UP
+  VISIT
+  REVISIT
+  BOOKING
+  OPEN
+  CLOSED
+  NOT_INTERESTED
+  LOST
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum CallOutcome {
+  POSITIVE
+  NEGATIVE
+  UNRESPONSIVE
+  CALLBACK
+  FOLLOW_UP
+  OTHER
+}
+
+enum CallStatus {
+  INITIATED
+  ANSWERED
+  MISSED
+  REJECTED
+  FAILED
+  COMPLETED
+}
+
+enum CallbackStatus {
+  SCHEDULED
+  DUE
+  COMPLETED
+  MISSED
+  RESCHEDULED
+  CANCELLED
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  MISSED
+  RESCHEDULED
+  CANCELLED
+}
+
+enum VisitStatus {
+  SCHEDULED
+  STARTED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum TrackingStatus {
+  ONLINE
+  OFFLINE
+  TRACKING
+  PAUSED
+}
+
+model User {
+  id               String         @id @default(uuid())
+  employeeId       String         @unique
+  name             String
+  email            String         @unique
+  phone            String         @unique
+  passwordHash     String
+  role             Role           @default(EXECUTIVE)
+  status           AccountStatus  @default(ACTIVE)
+  designation      String?
+  avatar           String?
+  managerId        String?
+  manager          User?          @relation("ManagerTeam", fields: [managerId], references: [id])
+  teamMembers      User[]         @relation("ManagerTeam")
+  
+  refreshTokens    RefreshToken[]
+  userDevices      UserDevice[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  // CRM Relationships
+  managedLeads     Lead[]         @relation("ManagedLeads")
+  assignedLeads    Lead[]         @relation("AssignedLeads")
+  createdLeads     Lead[]         @relation("CreatedLeads")
+  
+  assignedByReassignments LeadAssignment[] @relation("AssignedByUser")
+  previousReassignments   LeadAssignment[] @relation("PreviousExecutive")
+  newReassignments        LeadAssignment[] @relation("NewExecutive")
+
+  activitiesPerformed     LeadActivity[]   @relation("ActivitiesPerformed")
+  notes                   LeadNote[]       @relation("UserNotes")
+
+  calls                   Call[]           @relation("ExecutiveCalls")
+  callbacks               Callback[]       @relation("ExecutiveCallbacks")
+  followUps               FollowUp[]       @relation("ExecutiveFollowUps")
+  visits                  Visit[]          @relation("ExecutiveVisits")
+  revisits                Revisit[]        @relation("ExecutiveRevisits")
+  bookings                Booking[]        @relation("ExecutiveBookings")
+  expensesRecorded        Expense[]        @relation("ExpensesRecorded")
+  lossesManaged           LossRecord[]     @relation("LossesManaged")
+  lossesExecutive         LossRecord[]     @relation("LossesExecutive")
+
+  // Location Tracking
+  currentLocation         EmployeeCurrentLocation?
+  locationHistory         EmployeeLocationHistory[]
+
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  @@index([role])
+  @@index([status])
+  @@index([managerId])
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  revoked     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model UserDevice {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken    String   @unique
+  deviceType  String   @default("MOBILE") // ANDROID, IOS, WEB
+  lastActive  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Customer {
+  id              String   @id @default(uuid())
+  name            String
+  email           String?  @unique
+  phone           String   @unique
+  alternatePhone  String?
+  city            String?
+  address         String?
+  leads           Lead[]
+  invoices        Invoice[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Lead {
+  id                  String       @id @default(uuid())
+  leadNumber          String       @unique
+  customerId          String
+  customer            Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  source              LeadSource   @default(META)
+  status              LeadStatus   @default(NEW)
+  priority            Priority     @default(MEDIUM)
+  remarks             String?
+
+  createdById         String?
+  createdBy           User?        @relation("CreatedLeads", fields: [createdById], references: [id])
+
+  assignedManagerId   String?
+  assignedManager     User?        @relation("ManagedLeads", fields: [assignedManagerId], references: [id])
+
+  assignedExecutiveId String?
+  assignedExecutive   User?        @relation("AssignedLeads", fields: [assignedExecutiveId], references: [id])
+
+  lastContactAt       DateTime?
+  nextFollowUpAt      DateTime?
+
+  assignments         LeadAssignment[]
+  activities          LeadActivity[]
+  notes               LeadNote[]
+  calls               Call[]
+  callbacks           Callback[]
+  followUps           FollowUp[]
+  visits              Visit[]
+  revisits            Revisit[]
+  bookings            Booking[]
+  invoices            Invoice[]
+  lossRecords         LossRecord[]
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([status])
+  @@index([source])
+  @@index([assignedManagerId])
+  @@index([assignedExecutiveId])
+  @@index([createdAt])
+  @@index([nextFollowUpAt])
+}
+
+model LeadAssignment {
+  id                  String    @id @default(uuid())
+  leadId              String
+  lead                Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  previousExecutiveId String?
+  previousExecutive   User?     @relation("PreviousExecutive", fields: [previousExecutiveId], references: [id])
+  newExecutiveId      String
+  newExecutive        User      @relation("NewExecutive", fields: [newExecutiveId], references: [id])
+  assignedById        String
+  assignedBy          User      @relation("AssignedByUser", fields: [assignedById], references: [id])
+  reason              String    // Mandatory for reassignments
+  createdAt           DateTime  @default(now())
+
+  @@index([leadId])
+  @@index([newExecutiveId])
+  @@index([assignedById])
+  @@index([createdAt])
+}
+
+model LeadActivity {
+  id            String    @id @default(uuid())
+  leadId        String
+  lead          Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  activityType  String    // LEAD_CREATED, ASSIGNED, REASSIGNED, CALL_MADE, VISIT_SCHEDULED, STATUS_CHANGE, etc.
+  description   String
+  performedById String?
+  performedBy   User?     @relation("ActivitiesPerformed", fields: [performedById], references: [id])
+  metadata      Json?     // Stores previous status, diffs, outcome, recordings etc.
+  createdAt     DateTime  @default(now())
+
+  @@index([leadId])
+  @@index([createdAt])
+}
+
+model LeadNote {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("UserNotes", fields: [authorId], references: [id])
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model Call {
+  id             String          @id @default(uuid())
+  leadId         String
+  lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  executiveId    String
+  executive      User            @relation("ExecutiveCalls", fields: [executiveId], references: [id])
+  phoneNumber    String
+  callStartTime  DateTime        @default(now())
+  callEndTime    DateTime?
+  duration       Int             @default(0) // seconds
+  callStatus     CallStatus      @default(COMPLETED)
+  outcome        CallOutcome     @default(POSITIVE)
+  recordingUrl   String?
+  remarks        String?
+  recording      CallRecording?
+
+  createdAt      DateTime        @default(now())
+
+  @@index([leadId])
+  @@index([executiveId])
+  @@index([createdAt])
+  @@index([outcome])
+}
+
+model CallRecording {
+  id                String   @id @default(uuid())
+  callId            String   @unique
+  call              Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  recordingUrl      String
+  recordingDuration Int      @default(0) // seconds
+  providerCallId    String?
+  createdAt         DateTime @default(now())
+
+  @@index([callId])
+}
+
+model Callback {
+  id                  String         @id @default(uuid())
+  leadId              String
+  lead                Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedExecutiveId String
+  assignedExecutive   User           @relation("ExecutiveCallbacks", fields: [assignedExecutiveId], references: [id])
+  callbackDate        DateTime
+  callbackTime        String         // e.g. "14:30"
+  reason              String?
+  remarks             String?
+  status              CallbackStatus @default(SCHEDULED)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([leadId])
+  @@index([assignedExecutiveId])
+  @@index([callbackDate])
+  @@index([status])
+}
+
+model FollowUp {
+  id           String         @id @default(uuid())
+  leadId       String
+  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  executiveId  String
+  executive    User           @relation("ExecutiveFollowUps", fields: [executiveId], references: [id])
+  followUpDate DateTime
+  followUpTime String?
+  type         String         @default("GENERAL") // CALL, VISIT_CHECK, DOCUMENTS
+  remarks      String?
+  status       FollowUpStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([leadId])
+  @@index([executiveId])
+  @@index([followUpDate])
+  @@index([status])
+}
+
+model Visit {
+  id                 String      @id @default(uuid())
+  leadId             String
+  lead               Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  executiveId        String
+  executive          User        @relation("ExecutiveVisits", fields: [executiveId], references: [id])
+  visitDate          DateTime
+  visitTime          String?
+  latitude           Float?      // Target customer latitude
+  longitude          Float?      // Target customer longitude
+  address            String?
+  checkInLatitude    Float?
+  checkInLongitude   Float?
+  checkInTime        DateTime?
+  checkOutLatitude   Float?
+  checkOutLongitude  Float?
+  checkOutTime       DateTime?
+  status             VisitStatus @default(SCHEDULED)
+  remarks            String?
+  revisits           Revisit[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([leadId])
+  @@index([executiveId])
+  @@index([visitDate])
+  @@index([status])
+}
+
+model Revisit {
+  id          String      @id @default(uuid())
+  visitId     String?
+  visit       Visit?      @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  leadId      String
+  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  executiveId String
+  executive   User        @relation("ExecutiveRevisits", fields: [executiveId], references: [id])
+  revisitDate DateTime
+  revisitTime String?
+  location    String?
+  reason      String
+  remarks     String?
+  status      VisitStatus @default(SCHEDULED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([leadId])
+  @@index([executiveId])
+  @@index([revisitDate])
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  leadId        String
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  executiveId   String
+  executive     User          @relation("ExecutiveBookings", fields: [executiveId], references: [id])
+  bookingNumber String        @unique
+  bookingDate   DateTime      @default(now())
+  amount        Float
+  paymentStatus PaymentStatus @default(PENDING)
+  remarks       String?
+  invoices      Invoice[]
+  payments      Payment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([leadId])
+  @@index([executiveId])
+  @@index([bookingDate])
+  @@index([paymentStatus])
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  leadId        String
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  bookingId     String
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  amount        Float
+  tax           Float         @default(0.0)
+  discount      Float         @default(0.0)
+  totalAmount   Float
+  paymentStatus PaymentStatus @default(PENDING)
+  dueDate       DateTime
+  payments      Payment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([leadId])
+  @@index([bookingId])
+  @@index([paymentStatus])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  invoiceId       String?
+  invoice         Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  bookingId       String
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  amount          Float
+  method          String        // BANK_TRANSFER, UPI, CHEQUE, CASH, CARD
+  status          PaymentStatus @default(PAID)
+  referenceNumber String?
+  paymentDate     DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  @@index([bookingId])
+  @@index([invoiceId])
+  @@index([paymentDate])
+}
+
+model Expense {
+  id           String   @id @default(uuid())
+  title        String
+  category     String   // MARKETING, TRAVEL, OFFICE, SOFTWARE, MISC
+  amount       Float
+  date         DateTime @default(now())
+  recordedById String
+  recordedBy   User     @relation("ExpensesRecorded", fields: [recordedById], references: [id])
+  remarks      String?
+  createdAt    DateTime @default(now())
+
+  @@index([category])
+  @@index([date])
+}
+
+model LossRecord {
+  id                  String   @id @default(uuid())
+  leadId              String
+  lead                Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  reason              String   // HIGH_BUDGET, LOCATION_MISMATCH, COMPETITOR, NO_RESPONSE, etc.
+  estimatedLossAmount Float?   @default(0.0)
+  managerId           String?
+  manager             User?    @relation("LossesManaged", fields: [managerId], references: [id])
+  executiveId         String?
+  executive           User?    @relation("LossesExecutive", fields: [executiveId], references: [id])
+  remarks             String?
+  createdAt           DateTime @default(now())
+
+  @@index([leadId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
+model EmployeeCurrentLocation {
+  id            String         @id @default(uuid())
+  employeeId    String         @unique
+  employee      User           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  latitude      Float
+  longitude     Float
+  accuracy      Float?
+  speed         Float?
+  heading       Float?
+  batteryLevel  Int?
+  status        TrackingStatus @default(ONLINE)
+  lastUpdatedAt DateTime       @default(now())
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([lastUpdatedAt])
+}
+
+model EmployeeLocationHistory {
+  id           String   @id @default(uuid())
+  employeeId   String
+  employee     User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  latitude     Float
+  longitude    Float
+  accuracy     Float?
+  speed        Float?
+  heading      Float?
+  batteryLevel Int?
+  timestamp    DateTime @default(now())
+
+  @@index([employeeId, timestamp])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String   // NEW_LEAD, LEAD_ASSIGNED, CALLBACK_DUE, FOLLOWUP_DUE, etc.
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // LOGIN, LOGOUT, LEAD_CREATE, LEAD_ASSIGN, STATUS_CHANGE, etc.
+  entity    String   // User, Lead, Booking, Invoice, Location
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
