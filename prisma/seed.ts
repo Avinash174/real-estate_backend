@@ -23,6 +23,47 @@ async function main() {
     });
   }
 
+  // 1b. Permissions & Role Permissions
+  const permissionsData = [
+    { code: 'LEADS_VIEW', name: 'View Leads', module: 'LEADS', description: 'View assigned or team leads', roles: [Role.ADMIN, Role.MANAGER, Role.EXECUTIVE] },
+    { code: 'LEADS_CREATE', name: 'Create Leads', module: 'LEADS', description: 'Create new customer inquiry', roles: [Role.ADMIN, Role.MANAGER, Role.EXECUTIVE] },
+    { code: 'LEADS_ASSIGN', name: 'Assign Leads', module: 'LEADS', description: 'Assign leads to managers or executives', roles: [Role.ADMIN, Role.MANAGER] },
+    { code: 'LEADS_DELETE', name: 'Delete Leads', module: 'LEADS', description: 'Delete or archive leads', roles: [Role.ADMIN] },
+    { code: 'CALLS_MANAGE', name: 'Manage Calls', module: 'CALLS', description: 'Log calls and play recordings', roles: [Role.ADMIN, Role.MANAGER, Role.EXECUTIVE] },
+    { code: 'VISITS_MANAGE', name: 'Manage Site Visits', module: 'VISITS', description: 'Schedule and check in to visits', roles: [Role.ADMIN, Role.MANAGER, Role.EXECUTIVE] },
+    { code: 'FOLLOWUPS_MANAGE', name: 'Manage Follow-ups', module: 'FOLLOWUPS', description: 'Schedule and close follow-ups and callbacks', roles: [Role.ADMIN, Role.MANAGER, Role.EXECUTIVE] },
+    { code: 'BOOKINGS_MANAGE', name: 'Manage Bookings', module: 'BOOKINGS', description: 'Record unit bookings and receipts', roles: [Role.ADMIN, Role.MANAGER] },
+    { code: 'BILLING_MANAGE', name: 'Manage Billing & Expenses', module: 'BILLING', description: 'Invoices, payments, and operational expenses', roles: [Role.ADMIN] },
+    { code: 'TRACKING_VIEW', name: 'View Live Team Tracking', module: 'TRACKING', description: 'Live location map and history', roles: [Role.ADMIN, Role.MANAGER] },
+    { code: 'META_MANAGE', name: 'Manage Meta Lead Ads Integration', module: 'META', description: 'Configure Page integration and campaign routing', roles: [Role.ADMIN] },
+    { code: 'AUDIT_VIEW', name: 'View Audit Logs', module: 'AUDIT', description: 'System audit trails and timeline events', roles: [Role.ADMIN] },
+    { code: 'SETTINGS_MANAGE', name: 'Manage System Settings', module: 'SETTINGS', description: 'Global operational parameters and geofence', roles: [Role.ADMIN] },
+  ];
+
+  for (const perm of permissionsData) {
+    const p = await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: { name: perm.name, module: perm.module, description: perm.description },
+      create: { code: perm.code, name: perm.name, module: perm.module, description: perm.description },
+    });
+
+    for (const role of perm.roles) {
+      await prisma.rolePermission.upsert({
+        where: {
+          role_permissionId: {
+            role,
+            permissionId: p.id,
+          },
+        },
+        update: {},
+        create: {
+          role,
+          permissionId: p.id,
+        },
+      });
+    }
+  }
+
   // 2. Hash default password
   const passwordHash = await bcrypt.hash('Password@123', 10);
 
@@ -289,8 +330,10 @@ async function main() {
   });
 
   // 11. Booking & Billing
-  const booking1 = await prisma.booking.create({
-    data: {
+  const booking1 = await prisma.booking.upsert({
+    where: { bookingNumber: 'BK-2026-0042' },
+    update: {},
+    create: {
       leadId: lead2.id,
       executiveId: execAmit.id,
       bookingNumber: 'BK-2026-0042',
@@ -301,8 +344,10 @@ async function main() {
     },
   });
 
-  const invoice1 = await prisma.invoice.create({
-    data: {
+  const invoice1 = await prisma.invoice.upsert({
+    where: { invoiceNumber: 'INV-2026-0089' },
+    update: {},
+    create: {
       invoiceNumber: 'INV-2026-0089',
       leadId: lead2.id,
       bookingId: booking1.id,
@@ -316,34 +361,44 @@ async function main() {
     },
   });
 
-  await prisma.payment.create({
-    data: {
-      invoiceId: invoice1.id,
-      bookingId: booking1.id,
-      amount: 500000,
-      method: 'BANK_TRANSFER',
-      status: PaymentStatus.PAID,
-      referenceNumber: 'NEFT-HDFC-9918231',
-    },
+  const existingPayment = await prisma.payment.findFirst({
+    where: { referenceNumber: 'NEFT-HDFC-9918231' },
   });
+  if (!existingPayment) {
+    await prisma.payment.create({
+      data: {
+        invoiceId: invoice1.id,
+        bookingId: booking1.id,
+        amount: 500000,
+        method: 'BANK_TRANSFER',
+        status: PaymentStatus.PAID,
+        referenceNumber: 'NEFT-HDFC-9918231',
+      },
+    });
+  }
 
-  await prisma.expense.createMany({
-    data: [
-      {
-        title: 'Meta Real Estate Lead Generation Campaign - Q3',
-        category: 'MARKETING',
-        amount: 85000,
-        recordedById: admin.id,
-        remarks: 'Paid campaign targeting luxury homebuyers',
-      },
-      {
-        title: 'Sales Team Fuel and Travel Allowance',
-        category: 'TRAVEL',
-        amount: 14500,
-        recordedById: manager1.id,
-      },
-    ],
+  const existingExpense = await prisma.expense.findFirst({
+    where: { title: 'Meta Real Estate Lead Generation Campaign - Q3' },
   });
+  if (!existingExpense) {
+    await prisma.expense.createMany({
+      data: [
+        {
+          title: 'Meta Real Estate Lead Generation Campaign - Q3',
+          category: 'MARKETING',
+          amount: 85000,
+          recordedById: admin.id,
+          remarks: 'Paid campaign targeting luxury homebuyers',
+        },
+        {
+          title: 'Sales Team Fuel and Travel Allowance',
+          category: 'TRAVEL',
+          amount: 14500,
+          recordedById: manager1.id,
+        },
+      ],
+    });
+  }
 
   // 12. Live Location Tracking & History
   await prisma.employeeCurrentLocation.upsert({
@@ -397,40 +452,45 @@ async function main() {
   });
 
   // Location history breadcrumbs for Rahul
-  await prisma.employeeLocationHistory.createMany({
-    data: [
-      {
-        employeeId: execRahul.id,
-        latitude: 19.055,
-        longitude: 72.825,
-        accuracy: 8.0,
-        speed: 12.5,
-        heading: 90.0,
-        batteryLevel: 92,
-        timestamp: new Date(Date.now() - 3600000 * 2),
-      },
-      {
-        employeeId: execRahul.id,
-        latitude: 19.058,
-        longitude: 72.828,
-        accuracy: 7.2,
-        speed: 8.0,
-        heading: 110.0,
-        batteryLevel: 90,
-        timestamp: new Date(Date.now() - 3600000 * 1),
-      },
-      {
-        employeeId: execRahul.id,
-        latitude: 19.0601,
-        longitude: 72.8312,
-        accuracy: 6.5,
-        speed: 4.2,
-        heading: 140.0,
-        batteryLevel: 88,
-        timestamp: new Date(),
-      },
-    ],
+  const existingHistory = await prisma.employeeLocationHistory.findFirst({
+    where: { employeeId: execRahul.id },
   });
+  if (!existingHistory) {
+    await prisma.employeeLocationHistory.createMany({
+      data: [
+        {
+          employeeId: execRahul.id,
+          latitude: 19.055,
+          longitude: 72.825,
+          accuracy: 8.0,
+          speed: 12.5,
+          heading: 90.0,
+          batteryLevel: 92,
+          timestamp: new Date(Date.now() - 3600000 * 2),
+        },
+        {
+          employeeId: execRahul.id,
+          latitude: 19.058,
+          longitude: 72.828,
+          accuracy: 7.2,
+          speed: 8.0,
+          heading: 110.0,
+          batteryLevel: 90,
+          timestamp: new Date(Date.now() - 3600000 * 1),
+        },
+        {
+          employeeId: execRahul.id,
+          latitude: 19.0601,
+          longitude: 72.8312,
+          accuracy: 6.5,
+          speed: 4.2,
+          heading: 140.0,
+          batteryLevel: 88,
+          timestamp: new Date(),
+        },
+      ],
+    });
+  }
 
   console.log('Database seeded successfully with Users, Customers, Leads, Calls, Visits, Bookings, Billing and Live Tracking data.');
 }

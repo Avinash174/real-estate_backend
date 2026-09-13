@@ -23,6 +23,7 @@ import reportsRoutes from './modules/reports/reports.routes.js';
 import notificationsRoutes from './modules/notifications/notifications.routes.js';
 import auditRoutes from './modules/audit/audit.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
+import { metaWebhookRouter, metaAdminRouter, metaLeadsRouter } from './modules/integrations/meta/meta.routes.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -35,7 +36,14 @@ export const createApp = (): Express => {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '10mb' }));
+  app.use(
+    express.json({
+      limit: '10mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   if (config.NODE_ENV !== 'test') {
@@ -51,6 +59,9 @@ export const createApp = (): Express => {
 
   // API v1 Central Endpoints
   const v1 = express.Router();
+  v1.get('/health', (req, res) => {
+    sendSuccess(res, { status: 'UP', timestamp: new Date() }, 'Real Estate CRM API is operating normally');
+  });
   v1.use('/auth', authRoutes);
   v1.use('/users', usersRoutes);
   v1.use('/leads', leadsRoutes);
@@ -66,6 +77,11 @@ export const createApp = (): Express => {
   v1.use('/notifications', notificationsRoutes);
   v1.use('/audit', auditRoutes);
   v1.use('/settings', settingsRoutes);
+
+  // Meta Lead Ads Integration Endpoints
+  v1.use('/integrations/meta', metaWebhookRouter);
+  v1.use('/admin/integrations/meta', metaAdminRouter);
+  v1.use('/admin/leads/meta', metaLeadsRouter);
 
   // Specification Route Aliases for Admin, Manager, Mobile
   v1.use('/admin/users', usersRoutes);
