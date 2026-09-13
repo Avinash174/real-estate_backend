@@ -14,6 +14,7 @@ router.use(authenticate);
 router.get('/', authorize([Role.ADMIN, Role.MANAGER]), UsersController.listUsers);
 router.get('/managers', authorize([Role.ADMIN]), UsersController.listManagers);
 router.get('/executives', authorize([Role.ADMIN, Role.MANAGER]), UsersController.listExecutives);
+router.get('/:id', authorize([Role.ADMIN, Role.MANAGER]), UsersController.getUser);
 
 // Admin-only mutations
 router.post('/', authorize([Role.ADMIN]), validate(createUserSchema), UsersController.createUser);

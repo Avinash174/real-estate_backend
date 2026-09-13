@@ -10,5 +10,6 @@ router.use(authenticate);
 
 router.post('/', validate(createBookingSchema), BookingsController.createBooking);
 router.get('/', BookingsController.listBookings);
+router.get('/:id', BookingsController.getBooking);
 
 export default router;

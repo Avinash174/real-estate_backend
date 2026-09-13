@@ -24,4 +24,13 @@ export class BookingsController {
       next(error);
     }
   }
+
+  static async getBooking(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const booking = await BookingsService.getBookingById(req.params.id);
+      return sendSuccess(res, booking, 'Booking retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -66,4 +66,13 @@ export class UsersController {
       next(error);
     }
   }
+
+  static async getUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const user = await UsersService.getUserById(req.params.id);
+      return sendSuccess(res, user, 'User retrieved successfully');
+    } catch (error) {
+      next(error);
+    }
+  }
 }

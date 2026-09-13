@@ -73,6 +73,15 @@ export const createApp = (): Express => {
   v1.use('/admin/reports', reportsRoutes);
   v1.use('/admin/tracking', trackingRoutes);
   v1.use('/admin/billing', billingRoutes);
+  v1.use('/admin/visits', visitsRoutes);
+  v1.use('/admin/calls', callsRoutes);
+  v1.use('/admin/callbacks', callbacksRoutes);
+  v1.use('/admin/followups', followUpsRoutes);
+  v1.use('/admin/bookings', bookingsRoutes);
+  v1.use('/admin/audit', auditRoutes);
+  v1.use('/admin/assignments', assignmentsRoutes);
+  v1.use('/admin/settings', settingsRoutes);
+  v1.use('/admin/notifications', notificationsRoutes);
 
   v1.use('/manager/team', usersRoutes);
   v1.use('/manager/leads', leadsRoutes);

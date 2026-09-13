@@ -124,4 +124,26 @@ export class BookingsService {
       orderBy: { bookingDate: 'desc' },
     });
   }
+
+  static async getBookingById(id: string) {
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        lead: {
+          include: {
+            customer: true,
+          },
+        },
+        executive: { select: { id: true, name: true, employeeId: true, phone: true } },
+        invoices: true,
+        payments: true,
+      },
+    });
+
+    if (!booking) {
+      throw { statusCode: 404, message: 'Booking not found', errorCode: 'BOOKING_NOT_FOUND' };
+    }
+
+    return booking;
+  }
 }

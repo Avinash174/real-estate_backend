@@ -182,4 +182,47 @@ export class UsersService {
 
     return user;
   }
+
+  static async getUserById(id: string) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        employeeId: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        designation: true,
+        managerId: true,
+        manager: {
+          select: { id: true, name: true, employeeId: true },
+        },
+        currentLocation: {
+          select: {
+            status: true,
+            latitude: true,
+            longitude: true,
+            lastUpdatedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            assignedLeads: true,
+            managedLeads: true,
+            teamMembers: true,
+          },
+        },
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw { statusCode: 404, message: 'User not found', errorCode: 'USER_NOT_FOUND' };
+    }
+
+    return user;
+  }
 }
