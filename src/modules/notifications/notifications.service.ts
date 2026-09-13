@@ -4,6 +4,7 @@ import { config } from '../../config/index.js';
 import { NotificationPriority, Role } from '@prisma/client';
 import { NotificationPayload, buildNotificationLinks } from './notification.types.js';
 import { emitNotificationToUser, emitNotificationToRole } from '../../socket.js';
+import { IntegrationService } from '../integrations/integrations.service.js';
 
 export class NotificationsService {
   /**
@@ -94,8 +95,12 @@ export class NotificationsService {
       }
 
       try {
+        const activeServerKey =
+          (await IntegrationService.getSecretForInternalUse('FIREBASE_FCM', 'serverKey')) ||
+          config.FCM_SERVER_KEY;
+
         // If FCM Server Key is mock or empty, simulate dispatch
-        if (!config.FCM_SERVER_KEY || config.FCM_SERVER_KEY === 'mock_fcm_key') {
+        if (!activeServerKey || activeServerKey === 'mock_fcm_key') {
           logger.info(`[FCM-MOCK] Push sent to token ${fcmToken.substring(0, 10)}...: "${payload.title}"`);
           if (deliveryRecord) {
             await prisma.notificationDelivery.update({
@@ -135,7 +140,7 @@ export class NotificationsService {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `key=${config.FCM_SERVER_KEY}`,
+            Authorization: `key=${activeServerKey}`,
           },
           body: JSON.stringify(fcmPayload),
         });

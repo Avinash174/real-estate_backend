@@ -24,6 +24,7 @@ import notificationsRoutes from './modules/notifications/notifications.routes.js
 import auditRoutes from './modules/audit/audit.routes.js';
 import settingsRoutes from './modules/settings/settings.routes.js';
 import { metaWebhookRouter, metaAdminRouter, metaLeadsRouter } from './modules/integrations/meta/meta.routes.js';
+import apiIntegrationsRoutes from './modules/integrations/integrations.routes.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -77,6 +78,11 @@ export const createApp = (): Express => {
   v1.use('/notifications', notificationsRoutes);
   v1.use('/audit', auditRoutes);
   v1.use('/settings', settingsRoutes);
+
+  // API Integrations (Admin Only)
+  v1.use('/admin/integrations', apiIntegrationsRoutes);
+  v1.use('/settings/integrations', apiIntegrationsRoutes);
+  v1.use('/settings/api-integrations', apiIntegrationsRoutes);
 
   // Meta Lead Ads Integration Endpoints
   v1.use('/integrations/meta', metaWebhookRouter);

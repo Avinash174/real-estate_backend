@@ -70,3 +70,38 @@ export const maskToken = (token: string): string => {
   if (clean.length <= 8) return '********';
   return `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)}`;
 };
+
+/**
+ * Mask API keys for safe display: e.g. "AIza••••••••••••••••••••9XK2"
+ */
+export const maskApiKey = (key?: string | null, prefixLen = 4, suffixLen = 4): string => {
+  if (!key) return 'Not configured';
+  const clean = key.includes(':') ? decryptToken(key) : key;
+  if (!clean || clean.length === 0) return 'Not configured';
+  if (clean.length <= prefixLen + suffixLen) return '••••••••••••••••••••';
+
+  const prefix = clean.substring(0, prefixLen);
+  const suffix = clean.substring(clean.length - suffixLen);
+  return `${prefix}${'•'.repeat(20)}${suffix}`;
+};
+
+/**
+ * Encrypt a dictionary of secrets into an AES-256-GCM string
+ */
+export const encryptSecretsDict = (secrets: Record<string, any>): string => {
+  if (!secrets || Object.keys(secrets).length === 0) return '';
+  return encryptToken(JSON.stringify(secrets));
+};
+
+/**
+ * Decrypt an AES-256-GCM string back into a dictionary of secrets
+ */
+export const decryptSecretsDict = (encryptedStr?: string | null): Record<string, any> => {
+  if (!encryptedStr) return {};
+  try {
+    const jsonStr = decryptToken(encryptedStr);
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    return {};
+  }
+};

@@ -21,6 +21,7 @@ async function runNotificationSystemTests() {
           phone: `+9198${Date.now().toString().slice(-8)}`,
           passwordHash: 'dummy_hash',
           role: Role.ADMIN,
+          employeeId: `EMP-${Date.now().toString().slice(-4)}`,
         },
       });
     }

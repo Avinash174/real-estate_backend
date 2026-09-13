@@ -768,3 +768,24 @@ model MetaCampaignAssignment {
   @@index([campaignName])
 }
 
+model ApiIntegration {
+  id               String    @id @default(uuid())
+  provider         String    @unique // GOOGLE_MAPS, FIREBASE_FCM, META_LEAD_ADS, TELEPHONY
+  type             String    // MAPS, PUSH_NOTIFICATION, LEAD_GEN, CALLING
+  name             String
+  description      String?
+  isEnabled        Boolean   @default(true)
+  config           Json      @default("{}")
+  encryptedSecrets String?   // AES-256-GCM encrypted JSON string of credentials
+  lastTestedAt     DateTime?
+  lastTestStatus   String?   // NOT_CONFIGURED, CONFIGURED, CONNECTED, FAILED, DISABLED
+  lastTestMessage  String?
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([provider])
+  @@index([isEnabled])
+}
+
