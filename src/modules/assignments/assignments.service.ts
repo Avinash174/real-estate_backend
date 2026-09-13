@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma.js';
 import { LeadStatus, Role } from '@prisma/client';
 import { logAudit } from '../../utils/audit.js';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class AssignmentsService {
   static async assignOrReassign(params: {
@@ -79,15 +80,16 @@ export class AssignmentsService {
       },
     });
 
-    // 4. Create in-app notification for the newly assigned executive
-    await prisma.notification.create({
-      data: {
-        userId: params.newExecutiveId,
-        title: isReassignment ? 'Lead Reassigned to You' : 'New Lead Assigned',
-        body: `Lead ${lead.leadNumber} has been assigned to you.`,
-        type: isReassignment ? 'LEAD_REASSIGNED' : 'LEAD_ASSIGNED',
-        metadata: { leadId: lead.id, leadNumber: lead.leadNumber },
-      },
+    // 4. Emit Notification Event
+    notificationEmitter.emit('lead.assigned', {
+      leadId: lead.id,
+      newExecutiveId: params.newExecutiveId,
+      previousExecutiveId,
+      assignedById: params.assignedById,
+      reason: params.reason,
+      leadNumber: lead.leadNumber,
+      customerName: (lead as any).name,
+      managerId: newExecutive.managerId,
     });
 
     // 5. Audit Log

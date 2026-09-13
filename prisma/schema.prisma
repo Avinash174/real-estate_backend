@@ -109,6 +109,13 @@ enum TrackingStatus {
   PAUSED
 }
 
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 model User {
   id               String         @id @default(uuid())
   employeeId       String         @unique
@@ -127,6 +134,7 @@ model User {
   refreshTokens    RefreshToken[]
   userDevices      UserDevice[]
   notifications    Notification[]
+  notificationPreference NotificationPreference?
   auditLogs        AuditLog[]
 
   // CRM Relationships
@@ -210,8 +218,12 @@ model UserDevice {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fcmToken    String   @unique
   deviceType  String   @default("MOBILE") // ANDROID, IOS, WEB
+  deviceName  String?
+  appVersion  String?
+  isActive    Boolean  @default(true)
   lastActive  DateTime @default(now())
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 
   @@index([userId])
 }
@@ -267,6 +279,7 @@ model Lead {
   invoices            Invoice[]
   lossRecords         LossRecord[]
   metaLead            MetaLead?
+  notifications       Notification[]
 
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
@@ -583,18 +596,70 @@ model EmployeeLocationHistory {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String
-  body      String
-  type      String   // NEW_LEAD, LEAD_ASSIGNED, CALLBACK_DUE, FOLLOWUP_DUE, etc.
-  isRead    Boolean  @default(false)
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id             String               @id @default(uuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  body           String
+  type           String               // LEAD_ASSIGNED, CALLBACK_DUE, VISIT_REMINDER, etc.
+  priority       NotificationPriority @default(NORMAL)
+  entityType     String?              // LEAD, CALLBACK, FOLLOWUP, VISIT, REVISIT, BOOKING, INVOICE, PAYMENT, SYSTEM
+  entityId       String?
+  leadId         String?
+  lead           Lead?                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  idempotencyKey String?              @unique
+  isRead         Boolean              @default(false)
+  readAt         DateTime?
+  metadata       Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @default(now()) @updatedAt
+
+  deliveries     NotificationDelivery[]
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@index([type])
+  @@index([priority])
+  @@index([leadId])
+  @@index([idempotencyKey])
+}
+
+model NotificationDelivery {
+  id             String       @id @default(uuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel        String       // IN_APP, PUSH, SOCKET, EMAIL
+  status         String       // PENDING, SENT, DELIVERED, FAILED
+  recipient      String?      // userId, fcmToken, socketRoom
+  errorMessage   String?
+  sentAt         DateTime     @default(now())
+  deliveredAt    DateTime?
+
+  @@index([notificationId])
+  @@index([status])
+}
+
+model NotificationPreference {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leadAssignment Boolean  @default(true)
+  leadStatus     Boolean  @default(true)
+  callback       Boolean  @default(true)
+  followUp       Boolean  @default(true)
+  visit          Boolean  @default(true)
+  revisit        Boolean  @default(true)
+  call           Boolean  @default(true)
+  booking        Boolean  @default(true)
+  payment        Boolean  @default(true)
+  teamUpdates    Boolean  @default(true)
+  dailySummary   Boolean  @default(true)
+  systemAlerts   Boolean  @default(true)
+  inApp          Boolean  @default(true)
+  push           Boolean  @default(true)
+  email          Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model AuditLog {

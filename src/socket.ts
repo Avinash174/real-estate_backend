@@ -53,6 +53,9 @@ export const initSocket = (server: HttpServer, corsOrigin: string) => {
     const user = socket.user!;
     logger.info(`Socket connected: ${user.email} (${user.role}) [SocketID: ${socket.id}]`);
 
+    // Every user joins their private user room
+    socket.join(`room:user:${user.userId}`);
+
     // Assign rooms based on Role
     if (user.role === Role.ADMIN) {
       socket.join('room:admin');
@@ -77,6 +80,27 @@ export const initSocket = (server: HttpServer, corsOrigin: string) => {
 
 export const getSocketIO = (): Server | null => {
   return ioInstance;
+};
+
+/**
+ * Emit real-time notification to a specific user's private room
+ */
+export const emitNotificationToUser = (userId: string, notification: any, unreadCount?: number) => {
+  if (!ioInstance) return;
+  ioInstance.to(`room:user:${userId}`).emit('notification:new', notification);
+  if (typeof unreadCount === 'number') {
+    ioInstance.to(`room:user:${userId}`).emit('notification:badge', { unreadCount });
+  }
+};
+
+/**
+ * Emit real-time notification to an entire role room (e.g. room:admin)
+ */
+export const emitNotificationToRole = (role: Role, notification: any) => {
+  if (!ioInstance) return;
+  if (role === Role.ADMIN) {
+    ioInstance.to('room:admin').emit('notification:new', notification);
+  }
 };
 
 /**

@@ -2,6 +2,7 @@ import { prisma } from '../../utils/prisma.js';
 import { VisitStatus, LeadStatus, Role } from '@prisma/client';
 import { calculateDistanceMeters } from '../../utils/geo.js';
 import { logAudit } from '../../utils/audit.js';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class VisitsService {
   static async scheduleVisit(data: any, executiveId: string) {
@@ -36,6 +37,17 @@ export class VisitsService {
         performedById: executiveId,
         metadata: { visitId: visit.id, address: data.address },
       },
+    });
+
+    // Emit notification event
+    notificationEmitter.emit('visit.scheduled', {
+      visitId: visit.id,
+      leadId: visit.leadId,
+      executiveId,
+      visitDate: data.visitDate.split('T')[0],
+      visitTime: data.visitTime,
+      address: data.address,
+      customerName: visit.lead.customer?.name,
     });
 
     return visit;
@@ -130,6 +142,13 @@ export class VisitsService {
         performedById: executiveId,
         metadata: { visitId: visit.id, remarks: data.remarks },
       },
+    });
+
+    notificationEmitter.emit('visit.completed', {
+      visitId: visit.id,
+      leadId: visit.leadId,
+      executiveId,
+      remarks: data.remarks,
     });
 
     return updatedVisit;

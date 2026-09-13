@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma.js';
 import { Role, LeadStatus, LeadSource, Priority, Prisma } from '@prisma/client';
 import { logAudit } from '../../utils/audit.js';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class LeadsService {
   /**
@@ -169,6 +170,15 @@ export class LeadsService {
           performedById: createdById,
           metadata: { assignedExecutiveId: data.assignedExecutiveId },
         },
+      });
+
+      notificationEmitter.emit('lead.assigned', {
+        leadId: lead.id,
+        newExecutiveId: data.assignedExecutiveId,
+        assignedById: createdById,
+        reason: 'Initial assignment upon lead creation',
+        leadNumber: lead.leadNumber,
+        customerName: customer.name,
       });
     }
 
@@ -416,6 +426,17 @@ export class LeadsService {
       entityId: id,
       oldValue: { status: previousStatus },
       newValue: { status: newStatus, remarks },
+    });
+
+    notificationEmitter.emit('lead.status.changed', {
+      leadId: id,
+      leadNumber: updatedLead.leadNumber,
+      previousStatus,
+      newStatus,
+      customerName: updatedLead.customer?.name,
+      managerId: currentLead.assignedManagerId,
+      executiveId: currentLead.assignedExecutiveId,
+      remarks,
     });
 
     return updatedLead;

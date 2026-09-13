@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma.js';
 import { FollowUpStatus, Role } from '@prisma/client';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class FollowUpsService {
   static async createFollowUp(data: any, executiveId: string) {
@@ -36,6 +37,15 @@ export class FollowUpsService {
         performedById: executiveId,
         metadata: { followUpId: followUp.id },
       },
+    });
+
+    // Emit notification event
+    notificationEmitter.emit('followup.created', {
+      followUpId: followUp.id,
+      leadId: followUp.leadId,
+      executiveId,
+      followUpDate: data.followUpDate.split('T')[0],
+      customerName: followUp.lead.customer?.name,
     });
 
     return followUp;

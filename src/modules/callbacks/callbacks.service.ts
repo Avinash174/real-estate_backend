@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma.js';
 import { CallbackStatus, Role } from '@prisma/client';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class CallbacksService {
   static async createCallback(data: any, executiveId: string) {
@@ -38,6 +39,16 @@ export class CallbacksService {
         performedById: executiveId,
         metadata: { callbackId: callback.id },
       },
+    });
+
+    // Emit notification event
+    notificationEmitter.emit('callback.created', {
+      callbackId: callback.id,
+      leadId: callback.leadId,
+      executiveId,
+      callbackDate: data.callbackDate.split('T')[0],
+      callbackTime: data.callbackTime,
+      customerName: callback.lead.customer?.name,
     });
 
     return callback;

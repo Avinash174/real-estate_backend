@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma.js';
 import { LeadStatus, PaymentStatus, Role } from '@prisma/client';
 import { logAudit } from '../../utils/audit.js';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class BookingsService {
   static async createBooking(data: any, executiveId: string) {
@@ -96,6 +97,15 @@ export class BookingsService {
       entity: 'Booking',
       entityId: result.booking.id,
       newValue: { amount: data.amount, bookingNumber },
+    });
+
+    notificationEmitter.emit('booking.created', {
+      bookingId: result.booking.id,
+      leadId: data.leadId,
+      executiveId,
+      amount: data.amount,
+      bookingNumber,
+      customerName: lead.customer?.name,
     });
 
     return result;

@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma.js';
 import { PaymentStatus, LeadStatus, Role } from '@prisma/client';
 import { logAudit } from '../../utils/audit.js';
+import { notificationEmitter } from '../notifications/notification.events.js';
 
 export class BillingService {
   static async listInvoices() {
@@ -31,8 +32,8 @@ export class BillingService {
   }
 
   static async recordPayment(data: any, recordedById: string) {
-    return prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.create({
+    const payment = await prisma.$transaction(async (tx) => {
+      const paymentRecord = await tx.payment.create({
         data: {
           invoiceId: data.invoiceId || null,
           bookingId: data.bookingId,
@@ -82,7 +83,7 @@ export class BillingService {
             activityType: 'PAYMENT_RECEIVED',
             description: `Payment of ₹${data.amount.toLocaleString()} received via ${data.method}. Total paid: ₹${totalPaid.toLocaleString()}`,
             performedById: recordedById,
-            metadata: { paymentId: payment.id, amount: data.amount, totalPaid },
+            metadata: { paymentId: paymentRecord.id, amount: data.amount, totalPaid },
           },
         });
       }
@@ -91,12 +92,23 @@ export class BillingService {
         userId: recordedById,
         action: 'PAYMENT_RECORDED',
         entity: 'Payment',
-        entityId: payment.id,
+        entityId: paymentRecord.id,
         newValue: { amount: data.amount, bookingId: data.bookingId },
       });
 
-      return payment;
+      return { paymentRecord, leadId: booking?.leadId };
     });
+
+    notificationEmitter.emit('payment.received', {
+      paymentId: payment.paymentRecord.id,
+      bookingId: data.bookingId,
+      leadId: payment.leadId,
+      amount: data.amount,
+      paymentMethod: data.method,
+      recordedById,
+    });
+
+    return payment.paymentRecord;
   }
 
   static async listExpenses(from?: string, to?: string) {
