@@ -67,22 +67,23 @@ export const decryptToken = (encryptedText: string): string => {
 export const maskToken = (token: string): string => {
   if (!token) return 'Not configured';
   const clean = token.includes(':') ? decryptToken(token) : token;
-  if (clean.length <= 8) return '********';
-  return `${clean.substring(0, 6)}...${clean.substring(clean.length - 4)}`;
+  if (!clean || clean.length === 0) return 'Not configured';
+  if (clean.length <= 8) return '••••••••';
+  return `${clean.substring(0, 4)}••••••••${clean.substring(clean.length - 4)}`;
 };
 
 /**
- * Mask API keys for safe display: e.g. "AIza••••••••••••••••••••9XK2"
+ * Mask API keys for safe display: e.g. "AIza••••••••9XK2"
  */
 export const maskApiKey = (key?: string | null, prefixLen = 4, suffixLen = 4): string => {
   if (!key) return 'Not configured';
   const clean = key.includes(':') ? decryptToken(key) : key;
   if (!clean || clean.length === 0) return 'Not configured';
-  if (clean.length <= prefixLen + suffixLen) return '••••••••••••••••••••';
+  if (clean.length <= prefixLen + suffixLen) return '••••••••••••••••';
 
   const prefix = clean.substring(0, prefixLen);
   const suffix = clean.substring(clean.length - suffixLen);
-  return `${prefix}${'•'.repeat(20)}${suffix}`;
+  return `${prefix}••••••••${suffix}`;
 };
 
 /**
