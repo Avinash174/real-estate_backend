@@ -8,7 +8,9 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { sendSuccess } from './utils/response.js';
 
 // Import Route Handlers
-import authRoutes from './modules/auth/auth.routes.js';
+import authRoutes, { adminAuthRouter, mobileAuthRouter } from './modules/auth/auth.routes.js';
+import { NotificationsController } from './modules/notifications/notifications.controller.js';
+import { authenticate } from './middleware/authenticate.js';
 import usersRoutes from './modules/users/users.routes.js';
 import leadsRoutes from './modules/leads/leads.routes.js';
 import assignmentsRoutes from './modules/assignments/assignments.routes.js';
@@ -63,6 +65,8 @@ export const createApp = (): Express => {
   v1.get('/health', (req, res) => {
     sendSuccess(res, { status: 'UP', timestamp: new Date() }, 'Real Estate CRM API is operating normally');
   });
+  v1.use('/admin/auth', adminAuthRouter);
+  v1.use('/mobile/auth', mobileAuthRouter);
   v1.use('/auth', authRoutes);
   v1.use('/users', usersRoutes);
   v1.use('/leads', leadsRoutes);
@@ -115,6 +119,8 @@ export const createApp = (): Express => {
   v1.use('/mobile/visits', visitsRoutes);
   v1.use('/mobile/location', trackingRoutes);
   v1.use('/mobile/notifications', notificationsRoutes);
+  v1.post('/mobile/devices', authenticate, NotificationsController.registerDevice);
+  v1.delete('/mobile/devices/:fcmToken', authenticate, NotificationsController.unregisterDevice);
 
   app.use('/api/v1', v1);
 
