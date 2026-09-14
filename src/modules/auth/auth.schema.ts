@@ -30,8 +30,11 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   body: z.object({
-    email: z.string().email('Invalid email address'),
-    code: z.string().min(4, 'Reset code is required'),
+    token: z.string().optional(),
+    code: z.string().optional(),
+    email: z.string().email('Invalid email address').optional(),
     newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  }).refine((data) => data.token || (data.email && data.code), {
+    message: 'Either token or email and code must be provided',
   }),
 });
