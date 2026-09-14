@@ -83,15 +83,15 @@ export const createApp = (): Express => {
   v1.use('/audit', auditRoutes);
   v1.use('/settings', settingsRoutes);
 
+  // Meta Lead Ads Integration Endpoints (must be registered before generic /admin/integrations/:provider)
+  v1.use('/integrations/meta', metaWebhookRouter);
+  v1.use('/admin/integrations/meta', metaAdminRouter);
+  v1.use('/admin/leads/meta', metaLeadsRouter);
+
   // API Integrations (Admin Only)
   v1.use('/admin/integrations', apiIntegrationsRoutes);
   v1.use('/settings/integrations', apiIntegrationsRoutes);
   v1.use('/settings/api-integrations', apiIntegrationsRoutes);
-
-  // Meta Lead Ads Integration Endpoints
-  v1.use('/integrations/meta', metaWebhookRouter);
-  v1.use('/admin/integrations/meta', metaAdminRouter);
-  v1.use('/admin/leads/meta', metaLeadsRouter);
 
   // Specification Route Aliases for Admin, Manager, Mobile
   v1.use('/admin/users', usersRoutes);

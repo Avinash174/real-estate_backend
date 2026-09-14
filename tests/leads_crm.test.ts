@@ -18,8 +18,8 @@ describe('Core CRM, Duplicate Detection & Tracking Tests', () => {
 
     // Executive login
     const execLogin = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: 'rahul.verma@crm.com', password: 'Password@123' });
+      .post('/api/v1/mobile/auth/login')
+      .send({ identifier: 'rahul.verma@crm.com', password: 'Password@123' });
     executiveToken = execLogin.body.data.tokens.accessToken;
     executiveId = execLogin.body.data.user.id;
   });

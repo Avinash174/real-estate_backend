@@ -58,6 +58,7 @@ export interface MaskedIntegrationResponse {
   isConfigured: boolean;
   config: Record<string, any>;
   maskedSecrets: Record<string, string>;
+  maskedKey?: string;
   lastTestedAt?: Date | string | null;
   lastTestStatus?: IntegrationStatus | string | null;
   lastTestMessage?: string | null;
