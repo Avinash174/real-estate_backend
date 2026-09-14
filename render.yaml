@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: realestate-crm-backend
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm install && npx prisma generate && npm run build
+    preDeployCommand: npx prisma db push
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: realestate-crm-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: TELEPHONY_WEBHOOK_SECRET
+        sync: false
+      - key: FCM_SERVER_KEY
+        sync: false
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: META_PAGE_ID
+        sync: false
+      - key: META_WEBHOOK_VERIFY_TOKEN
+        sync: false
+      - key: META_GRAPH_API_VERSION
+        value: v21.0
+
+databases:
+  - name: realestate-crm-db
+    databaseName: realestate_crm
+    user: realestate_user
+    plan: free
